@@ -105,3 +105,40 @@ export interface CachedScan {
 }
 
 export type OutputFormat = "terminal" | "json" | "markdown";
+
+// Fix command types
+export type FixCategory = "links" | "orphans" | "isolated";
+
+export interface FixAction {
+  category: FixCategory;
+  description: string;
+  filePath: string;
+  /** For modifications: the original content */
+  originalContent?: string;
+  /** For modifications: the new content */
+  newContent?: string;
+  /** For new file creation: the content to write */
+  createContent?: string;
+  /** Whether this is a file creation vs modification */
+  isCreate: boolean;
+}
+
+export interface FixPlan {
+  actions: FixAction[];
+  summary: {
+    totalFixes: number;
+    linkFixes: number;
+    orphanFixes: number;
+    isolatedFixes: number;
+    filesToModify: number;
+    filesToCreate: number;
+  };
+}
+
+export interface FixResult {
+  plan: FixPlan;
+  applied: boolean;
+  actionsApplied: number;
+  actionsSkipped: number;
+  errors: { action: FixAction; error: string }[];
+}
