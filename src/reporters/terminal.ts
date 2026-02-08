@@ -80,7 +80,7 @@ export function renderTerminal(result: VaultScanResult): string {
   );
   lines.push(
     bullet(
-      `Connectivity: ${colorScore(result.links.connectivityScore * 100)}%`
+      `Connectivity: ${colorScore(result.links.connectivityScore * 100)}% overall | ${colorScore(result.links.knowledgeConnectivity * 100)}% knowledge`
     )
   );
 
@@ -99,14 +99,38 @@ export function renderTerminal(result: VaultScanResult): string {
     lines.push(chalk.green("  No broken links"));
   }
 
-  if (result.links.orphanFiles.length > 0) {
+  if (result.links.knowledgeOrphans.length > 0) {
     lines.push(
       chalk.yellow(
-        `  ${result.links.orphanFiles.length} orphan file(s) (not linked to):`
+        `  ${result.links.knowledgeOrphans.length} knowledge orphan(s) (not linked to):`
       )
     );
-    for (const o of result.links.orphanFiles.slice(0, 5)) {
+    for (const o of result.links.knowledgeOrphans.slice(0, 5)) {
       lines.push(`    ${chalk.dim(o)}`);
+    }
+    if (result.links.knowledgeOrphans.length > 5) {
+      lines.push(chalk.dim(`    ... and ${result.links.knowledgeOrphans.length - 5} more`));
+    }
+  }
+
+  if (result.links.structuralOrphans.length > 0) {
+    lines.push(
+      chalk.dim(
+        `  ${result.links.structuralOrphans.length} structural orphan(s) (expected — memory/, reports/, etc.)`
+      )
+    );
+  }
+
+  if (result.links.pathStyleLinks.length > 0) {
+    lines.push(
+      chalk.blue(
+        `  ${result.links.pathStyleLinks.length} path-style link(s) (suggest short names):`
+      )
+    );
+    for (const pl of result.links.pathStyleLinks.slice(0, 3)) {
+      lines.push(
+        `    ${chalk.dim(pl.source)} → ${chalk.blue(pl.target)} ${chalk.dim("→ suggest")} ${chalk.cyan(pl.suggestedName)}`
+      );
     }
   }
 

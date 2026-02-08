@@ -24,8 +24,12 @@ export interface LinkReport {
   totalLinks: number;
   uniqueLinks: number;
   brokenLinks: { source: string; target: string }[];
-  orphanFiles: string[];
-  connectivityScore: number; // 0-1 ratio
+  orphanFiles: string[]; // all orphans (backwards compat)
+  structuralOrphans: string[]; // expected orphans (memory/, reports/, templates/, etc.)
+  knowledgeOrphans: string[]; // actual problems (bank/, root-level core docs)
+  pathStyleLinks: { source: string; target: string; suggestedName: string }[]; // non-standard path-style links
+  connectivityScore: number; // 0-1 ratio (overall, backwards compat)
+  knowledgeConnectivity: number; // 0-1 ratio (excludes structural files)
   linksByFile: Map<string, string[]>;
 }
 

@@ -9,10 +9,10 @@ function calculateScore(result: VaultScanResult): number {
   score -= Math.min(result.staleness.staleFiles.length * 2, 20);
   score -= Math.min(result.staleness.dailyLogGaps.length * 3, 15);
 
-  // Link health penalties
+  // Link health penalties (use knowledge metrics — structural orphans are expected)
   score -= result.links.brokenLinks.length * 5;
-  score -= Math.min(result.links.orphanFiles.length * 2, 15);
-  if (result.links.connectivityScore < 0.5) {
+  score -= Math.min(result.links.knowledgeOrphans.length * 2, 15);
+  if (result.links.knowledgeConnectivity < 0.5) {
     score -= 10;
   }
 
@@ -23,7 +23,7 @@ function calculateScore(result: VaultScanResult): number {
 
   // Bonuses
   if (result.staleness.dailyLogStreak >= 7) score += 5;
-  if (result.links.connectivityScore >= 0.8) score += 5;
+  if (result.links.knowledgeConnectivity >= 0.8) score += 5;
   if (result.quality.selfReview) {
     const sr = result.quality.selfReview;
     if (sr.hits > sr.misses) score += 5;
@@ -81,11 +81,19 @@ export function generateDoctorReport(
     });
   }
 
-  if (result.links.orphanFiles.length > 3) {
+  if (result.links.knowledgeOrphans.length > 0) {
     issues.push({
       severity: "warning",
-      message: `${result.links.orphanFiles.length} orphan files not linked from anywhere`,
-      fix: `Add wikilinks to orphan files from relevant documents`,
+      message: `${result.links.knowledgeOrphans.length} knowledge orphan(s) not linked from anywhere`,
+      fix: `Add wikilinks to orphan files from relevant documents: ${result.links.knowledgeOrphans.slice(0, 3).join(", ")}`,
+    });
+  }
+
+  if (result.links.structuralOrphans.length > 0) {
+    issues.push({
+      severity: "info",
+      message: `${result.links.structuralOrphans.length} structural orphan(s) (expected — memory/, reports/, templates/, etc.)`,
+      fix: `No action needed — these files are structural by design`,
     });
   }
 
@@ -105,11 +113,19 @@ export function generateDoctorReport(
     });
   }
 
-  if (result.links.connectivityScore < 0.5) {
+  if (result.links.knowledgeConnectivity < 0.5) {
     issues.push({
       severity: "warning",
-      message: `Low connectivity score: ${(result.links.connectivityScore * 100).toFixed(0)}%`,
-      fix: `Increase cross-linking between files to improve knowledge navigation`,
+      message: `Low knowledge connectivity: ${(result.links.knowledgeConnectivity * 100).toFixed(0)}%`,
+      fix: `Increase cross-linking between knowledge files to improve navigation`,
+    });
+  }
+
+  if (result.links.pathStyleLinks.length > 0) {
+    issues.push({
+      severity: "info",
+      message: `${result.links.pathStyleLinks.length} path-style link(s) found (non-standard format)`,
+      fix: `Use short names instead: ${result.links.pathStyleLinks.slice(0, 3).map((l) => `[[${l.target}]] → [[${l.suggestedName}]]`).join(", ")}`,
     });
   }
 

@@ -48,7 +48,7 @@ async function runScan(
     scanDate: new Date().toISOString(),
     files,
     staleness: analyzeStaleness(files, config),
-    links: analyzeLinks(files),
+    links: analyzeLinks(files, absPath),
     growth: analyzeGrowth(files),
     quality: analyzeQuality(files, config),
     graph: analyzeGraph(files),

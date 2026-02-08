@@ -39,7 +39,7 @@ export function renderMarkdown(result: VaultScanResult): string {
     `- Total links: ${result.links.totalLinks} (${result.links.uniqueLinks} unique)`
   );
   lines.push(
-    `- Connectivity score: ${(result.links.connectivityScore * 100).toFixed(0)}%`
+    `- Connectivity: ${(result.links.connectivityScore * 100).toFixed(0)}% overall | ${(result.links.knowledgeConnectivity * 100).toFixed(0)}% knowledge`
   );
   if (result.links.brokenLinks.length > 0) {
     lines.push(`\n### Broken Links\n`);
@@ -49,12 +49,30 @@ export function renderMarkdown(result: VaultScanResult): string {
       lines.push(`| ${bl.source} | ${bl.target} |`);
     }
   }
-  if (result.links.orphanFiles.length > 0) {
+  if (result.links.knowledgeOrphans.length > 0) {
     lines.push(
-      `\n### Orphan Files (${result.links.orphanFiles.length})\n`
+      `\n### Knowledge Orphans (${result.links.knowledgeOrphans.length})\n`
     );
-    for (const o of result.links.orphanFiles) {
+    for (const o of result.links.knowledgeOrphans) {
       lines.push(`- ${o}`);
+    }
+  }
+  if (result.links.structuralOrphans.length > 0) {
+    lines.push(
+      `\n### Structural Orphans (${result.links.structuralOrphans.length}) — expected\n`
+    );
+    for (const o of result.links.structuralOrphans) {
+      lines.push(`- ${o}`);
+    }
+  }
+  if (result.links.pathStyleLinks.length > 0) {
+    lines.push(
+      `\n### Path-Style Links (${result.links.pathStyleLinks.length}) — suggest short names\n`
+    );
+    lines.push("| Source | Target | Suggested |");
+    lines.push("|--------|--------|-----------|");
+    for (const pl of result.links.pathStyleLinks) {
+      lines.push(`| ${pl.source} | ${pl.target} | ${pl.suggestedName} |`);
     }
   }
 
