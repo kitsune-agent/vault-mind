@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import { resolve } from "path";
+import chalk from "chalk";
 import { loadConfig } from "./config.js";
 import { scanVault } from "./scanner.js";
 import { analyzeStaleness } from "./analyzers/staleness.js";
@@ -151,7 +152,6 @@ program
 
 function renderGraphAscii(graph: import("./types.js").GraphData): string {
   const lines: string[] = [];
-  const chalk = require("chalk") as typeof import("chalk").default;
 
   lines.push(chalk.bold.magenta("\n🕸️  vault-mind knowledge graph\n"));
 
