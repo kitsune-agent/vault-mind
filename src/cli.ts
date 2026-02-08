@@ -19,7 +19,15 @@ import {
 } from "./reporters/doctor.js";
 import { renderTimeline } from "./reporters/timeline.js";
 import { saveScan, loadLastScan } from "./cache.js";
-import type { VaultScanResult } from "./types.js";
+import { generateFixPlan, applyFixPlan } from "./fixers/index.js";
+import {
+  renderFixPlanTerminal,
+  renderFixResultTerminal,
+  renderFixPlanJson,
+  renderFixResultJson,
+  renderFixPlanMarkdown,
+} from "./reporters/fix.js";
+import type { VaultScanResult, FixCategory, FixAction } from "./types.js";
 
 const program = new Command();
 
@@ -149,6 +157,112 @@ program
     // Keep process alive
     await new Promise(() => {});
   });
+
+program
+  .command("fix <path>")
+  .description("Auto-fix issues found by doctor/scan (dry-run by default)")
+  .option("--apply", "Actually write changes to disk")
+  .option("--interactive", "Prompt y/n for each fix")
+  .option("--only <type>", "Only fix a specific type: links, orphans, or isolated")
+  .option("--json", "Output as JSON")
+  .option("--md", "Output as Markdown")
+  .action(
+    async (
+      path: string,
+      opts: {
+        apply?: boolean;
+        interactive?: boolean;
+        only?: string;
+        json?: boolean;
+        md?: boolean;
+      }
+    ) => {
+      // Validate --only flag
+      const validOnly = ["links", "orphans", "isolated"];
+      if (opts.only && !validOnly.includes(opts.only)) {
+        console.error(
+          chalk.red(
+            `Invalid --only value: ${opts.only}. Must be one of: ${validOnly.join(", ")}`
+          )
+        );
+        process.exit(1);
+      }
+
+      const absPath = resolve(path);
+      const result = await runScan(path);
+      const only = opts.only as FixCategory | undefined;
+
+      const plan = generateFixPlan(
+        result.files,
+        result.links,
+        result.quality,
+        only
+      );
+
+      if (!opts.apply) {
+        // Dry-run: just show the plan
+        if (opts.json) {
+          console.log(renderFixPlanJson(plan));
+        } else if (opts.md) {
+          console.log(renderFixPlanMarkdown(plan));
+        } else {
+          console.log(renderFixPlanTerminal(plan));
+        }
+        return;
+      }
+
+      // Build prompt function for interactive mode
+      let promptFn: ((action: FixAction) => Promise<boolean>) | undefined;
+      if (opts.interactive) {
+        const readline = await import("readline");
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+
+        promptFn = (action: FixAction) => {
+          return new Promise<boolean>((resolve) => {
+            const icon = action.isCreate ? chalk.green("+") : chalk.yellow("~");
+            rl.question(
+              `\n${icon} ${action.description}\n  Apply? [y/N] `,
+              (answer) => {
+                resolve(
+                  answer.toLowerCase() === "y" || answer.toLowerCase() === "yes"
+                );
+              }
+            );
+          });
+        };
+
+        // Close readline when done
+        const origPromptFn = promptFn;
+        let actionCount = 0;
+        promptFn = async (action: FixAction) => {
+          actionCount++;
+          const result = await origPromptFn(action);
+          if (actionCount >= plan.actions.length) {
+            rl.close();
+          }
+          return result;
+        };
+      }
+
+      const fixResult = await applyFixPlan(absPath, plan, {
+        apply: true,
+        interactive: !!opts.interactive,
+        only,
+        promptFn,
+      });
+
+      if (opts.json) {
+        console.log(renderFixResultJson(fixResult));
+      } else if (opts.md) {
+        console.log(renderFixPlanMarkdown(plan));
+      } else {
+        console.log(renderFixResultTerminal(fixResult));
+      }
+    }
+  );
 
 function renderGraphAscii(graph: import("./types.js").GraphData): string {
   const lines: string[] = [];
