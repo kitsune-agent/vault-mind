@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { join } from "path";
-import { scanVault, parseWikilinks, parseFrontmatter, countWords } from "../src/scanner.js";
+import { scanVault, parseWikilinks, stripCodeBlocks, parseFrontmatter, countWords } from "../src/scanner.js";
 import { DEFAULT_CONFIG } from "../src/config.js";
 
 const HEALTHY_VAULT = join(import.meta.dir, "fixtures/healthy-vault");
@@ -24,6 +24,97 @@ describe("parseWikilinks", () => {
   test("handles multiple links on same line", () => {
     const content = "[[A]] then [[B]] then [[C]]";
     expect(parseWikilinks(content)).toEqual(["A", "B", "C"]);
+  });
+
+  test("ignores wikilinks inside fenced code blocks", () => {
+    const content = `Real link to [[Alice]].
+
+\`\`\`markdown
+Example: [[TemplateName]]
+\`\`\`
+
+Also links to [[Bob]].`;
+    expect(parseWikilinks(content)).toEqual(["Alice", "Bob"]);
+  });
+
+  test("ignores wikilinks inside inline code", () => {
+    const content = "Use \`[[Name-Name]]\` syntax to link. See [[Alice]].";
+    expect(parseWikilinks(content)).toEqual(["Alice"]);
+  });
+
+  test("ignores wikilinks in fenced code with language tag", () => {
+    const content = `See [[Alice]].
+
+\`\`\`typescript
+const link = "[[CodeLink]]";
+\`\`\`
+
+And [[Bob]].`;
+    expect(parseWikilinks(content)).toEqual(["Alice", "Bob"]);
+  });
+
+  test("handles mixed code blocks and inline code", () => {
+    const content = `# Example
+
+Link to [[Real]]. Use \`[[Template]]\` for templates.
+
+\`\`\`
+[[InsideBlock]]
+\`\`\`
+
+And [[AlsoReal]].`;
+    expect(parseWikilinks(content)).toEqual(["Real", "AlsoReal"]);
+  });
+});
+
+describe("stripCodeBlocks", () => {
+  test("strips fenced code blocks", () => {
+    const content = `Before
+
+\`\`\`
+code here
+\`\`\`
+
+After`;
+    const stripped = stripCodeBlocks(content);
+    expect(stripped).toContain("Before");
+    expect(stripped).toContain("After");
+    expect(stripped).not.toContain("code here");
+  });
+
+  test("strips inline code spans", () => {
+    const content = "Use `code here` for examples.";
+    const stripped = stripCodeBlocks(content);
+    expect(stripped).toContain("Use");
+    expect(stripped).toContain("for examples.");
+    expect(stripped).not.toContain("code here");
+  });
+
+  test("handles multiple fenced blocks", () => {
+    const content = `Text
+
+\`\`\`
+block1
+\`\`\`
+
+Middle
+
+\`\`\`js
+block2
+\`\`\`
+
+End`;
+    const stripped = stripCodeBlocks(content);
+    expect(stripped).toContain("Text");
+    expect(stripped).toContain("Middle");
+    expect(stripped).toContain("End");
+    expect(stripped).not.toContain("block1");
+    expect(stripped).not.toContain("block2");
+  });
+
+  test("preserves content outside code blocks", () => {
+    const content = "No code blocks here.";
+    expect(stripCodeBlocks(content)).toBe("No code blocks here.");
   });
 });
 

@@ -4,11 +4,24 @@ import type { VaultFile, VaultMindConfig } from "./types.js";
 
 const WIKILINK_REGEX = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
 
+/**
+ * Strip fenced code blocks and inline code spans from content.
+ * This prevents wikilinks inside code examples from being extracted.
+ */
+function stripCodeBlocks(content: string): string {
+  // Strip fenced code blocks (``` ... ```) — handles optional language tag
+  let stripped = content.replace(/```[\s\S]*?```/g, "");
+  // Strip inline code spans (` ... `) — non-greedy, single line
+  stripped = stripped.replace(/`[^`\n]+`/g, "");
+  return stripped;
+}
+
 function parseWikilinks(content: string): string[] {
+  const strippedContent = stripCodeBlocks(content);
   const links: string[] = [];
   let match: RegExpExecArray | null;
   const regex = new RegExp(WIKILINK_REGEX.source, WIKILINK_REGEX.flags);
-  while ((match = regex.exec(content)) !== null) {
+  while ((match = regex.exec(strippedContent)) !== null) {
     links.push(match[1].trim());
   }
   return links;
@@ -100,4 +113,4 @@ export async function scanVault(
   return files;
 }
 
-export { parseWikilinks, parseFrontmatter, countWords };
+export { parseWikilinks, stripCodeBlocks, parseFrontmatter, countWords };

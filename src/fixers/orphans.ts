@@ -51,7 +51,8 @@ export function fixOrphans(
   linkReport: LinkReport
 ): FixAction[] {
   const actions: FixAction[] = [];
-  const orphanPaths = new Set(linkReport.orphanFiles);
+  // Only fix knowledge orphans — structural orphans are expected
+  const orphanPaths = new Set(linkReport.knowledgeOrphans);
 
   // Don't try to fix orphans that have no content
   const orphansToFix = files.filter(
